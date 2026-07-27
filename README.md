@@ -40,6 +40,16 @@ O sistema substitui soluções estáticas por uma arquitetura moderna e desacopl
 [ Front-end (Leaflet.js + Filtros Dinâmicos) ]
 ```
 
+## Evolução Arquitetural (Versão MK2)
+
+Esta versão (MK2) representa uma reformulação arquitetural estrutural em relação à concepção original do projeto. O objetivo da refatoração foi eliminar gargalos de escalabilidade, tratamento manual de arquivos e acoplamento de responsabilidades, elevando a aplicação a um padrão de mercado. 
+
+As principais decisões de engenharia incluem:
+
+* **Pipeline de Dados Automático (ETL):** Substituição da inserção manual de dados por um script Python dedicado (`pandas` e `pyodbc`). Este pipeline realiza a extração, limpeza (higienização de *encoding* e formatos) e carga (Load) direta do arquivo `.csv` para o banco de dados.
+* **Desacoplamento e Tipagem Forte:** Adoção do framework .NET 10 para a construção de uma Web API Restful estrita. O uso do C# garante tipagem forte e maior previsibilidade em tempo de compilação.
+* **Persistência Relacional:** Transição de dados estáticos para um banco de dados relacional estruturado (SQL Server), com mapeamento objeto-relacional gerenciado via Entity Framework Core (Code-First), garantindo integridade referencial entre as entidades de Estabelecimentos e Produções.
+
 ---
 
 ## ⚙️ Como Executar o Projeto Localmente
@@ -47,34 +57,37 @@ O sistema substitui soluções estáticas por uma arquitetura moderna e desacopl
 ### Pré-requisitos
 Certifique-se de ter instalado em sua máquina:
 * [.NET 10 SDK](https://dotnet.microsoft.com/)
-* [Python 3.x](https://www.python.org/) com as bibliotecas `pandas`, `pyodbc` e `openpyxl`
+* [Python 3.x](https://www.python.org/)
 * Microsoft SQL Server (ou SQL Server Express)
 
 ### Passo 1: Clonar o Repositório
 ```bash
-git clone [https://github.com/SEU-USUARIO/FrutosDeGoias.Api.git](https://github.com/SEU-USUARIO/FrutosDeGoias.Api.git)
+git clone [https://github.com/fernandogt8/FrutosDeGoias.Api.git](https://github.com/fernandogt8/FrutosDeGoias.Api.git)
 cd FrutosDeGoias.Api
 ```
 
-### Passo 2: Configurar o Banco de Dados e Rodar o ETL
-1. Certifique-se de que o arquivo `producao.csv` está na raiz do projeto.
-2. Crie um banco de dados no seu SQL Server chamado `FrutosDeGoiasDb`.
-3. Instale as dependências do Python e execute o script de importação para popular o banco relacional:
-```bash
-pip install pandas pyodbc openpyxl
-python importar_dados.py
-```
-
-### Passo 3: Configurar a String de Conexão
-No arquivo `appsettings.json` da API, garanta que a string de conexão aponte corretamente para o seu SQL Server local:
+### Passo 2: Configurar a Conexão com o Banco
+1. Crie um banco de dados vazio no seu SQL Server chamado `FrutosDeGoiasDb`.
+2. No arquivo `appsettings.json`, garanta que a string de conexão aponte corretamente para o seu servidor local. Exemplo:
 ```json
 "ConnectionStrings": {
   "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=FrutosDeGoiasDb;Trusted_Connection=True;TrustServerCertificate=True;"
 }
 ```
 
+### Passo 3: Criar o Schema e Popular o Banco (ETL)
+1. Primeiro, aplique as migrações do Entity Framework para gerar as tabelas estruturadas via C#:
+```bash
+dotnet ef database update
+```
+2. Em seguida, instale as dependências do Python e execute o script de importação para ler o `producao.csv` e popular o banco relacional:
+```bash
+pip install pandas pyodbc
+python importar_dados.py
+```
+
 ### Passo 4: Iniciar a API
-Execute o comando abaixo na pasta raiz do projeto .NET para compilar e iniciar o servidor web:
+Execute o comando abaixo na pasta raiz do projeto para compilar e iniciar o servidor web:
 ```bash
 dotnet run
 ```
