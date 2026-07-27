@@ -1,0 +1,19 @@
+# .NET Core / Visual Studio / VS Code
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+.vscode/
+
+# Python / Caches
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+
+# Sistema Operacional
+Thumbs.db
+ehthumbs.db
+.DS_Store

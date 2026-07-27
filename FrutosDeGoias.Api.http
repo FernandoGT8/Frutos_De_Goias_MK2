@@ -1,0 +1,6 @@
+@FrutosDeGoias.Api_HostAddress = http://localhost:5098
+
+GET {{FrutosDeGoias.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
