@@ -46,18 +46,28 @@ conn_str = (
 conn = pyodbc.connect(conn_str)
 cursor = conn.cursor()
 
-# Limpa dados antigos para evitar duplicação em execuções repetidas
-cursor.execute("DELETE FROM Producoes")
-conn.commit()
+# Habilita o verdadeiro processamento em lote em memória (Bulk Insert)
+cursor.fast_executemany = True 
 
-# 4. Inserção em lote no Banco de Dados
-print("Inserindo dados na tabela dbo.Producoes...")
-query = (
-    "INSERT INTO Producoes (Cidade, Fruta, QuantidadeToneladas) VALUES (?, ?, ?)"
-)
-cursor.executemany(query, dados_para_inserir)
-conn.commit()
+try:
+    print("Iniciando transação: Limpeza e Inserção...")
+    
+    # 1. Limpa os dados (dentro da transação, sem commit ainda)
+    cursor.execute("DELETE FROM Producoes")
+    
+    # 2. Insere os novos dados
+    query = "INSERT INTO Producoes (Cidade, Fruta, QuantidadeToneladas) VALUES (?, ?, ?)"
+    cursor.executemany(query, dados_para_inserir)
+    
+    # 3. Confirma tudo de uma vez. Se chegou aqui, nada falhou.
+    conn.commit()
+    print("Transação confirmada! Importação concluída com sucesso.")
 
-cursor.close()
-conn.close()
-print("Importação concluída com sucesso!")
+except Exception as e:
+    # Se qualquer coisa der errado, cancela o DELETE e as Inserções parciais
+    conn.rollback()
+    print(f"Falha crítica na importação. Transação revertida. Nenhuma alteração foi salva no banco. Erro: {e}")
+
+finally:
+    cursor.close()
+    conn.close()

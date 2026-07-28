@@ -1,44 +1,52 @@
 # 🍇 Mapeamento da Fruticultura em Goiás
 
-> **Contexto do Projeto:** Projeto acadêmico de faculdade desenvolvido para atender a uma demanda real de uma colega de trabalho, unindo engenharia de dados, uma API robusta em .NET e uma interface geográfica interativa de alta performance.
+> **Contexto do Projeto:** Projeto desenvolvido para atender a uma demanda real de visualização de dados, substituindo planilhas estáticas por uma arquitetura Client-Server desacoplada. O sistema une engenharia de dados, uma API robusta em .NET otimizada para alta performance e uma interface geográfica reativa.
 
 ---
 
 ## 🚀 Sobre o Projeto
 
-O **Frutos de Goiás** é uma aplicação full-stack desenvolvida para analisar, processar e visualizar espacialmente os dados de produção agrícola (fruticultura) do estado de Goiás com base nos dados oficiais do IBGE (PAM). 
+O **Frutos de Goiás** é uma aplicação full-stack construída para analisar, processar e renderizar espacialmente dados da produção agrícola do estado de Goiás, baseada no Levantamento Sistemático da Produção Agrícola (PAM/IBGE). 
 
-O sistema substitui soluções estáticas por uma arquitetura moderna e desacoplada, composta por:
-1. **Pipeline de ETL em Python**: Tratamento e carga de dados brutos tabulares para um banco de dados relacional.
-2. **Back-end em .NET Web API**: Uma API limpa construída com C# e Entity Framework Core para gerenciamento e entrega de dados.
-3. **Front-end Interativo**: Um mapa web baseado em Leaflet.js com renderização vetorial de polígonos municipais, escala de cores dinâmica (*choropleth*) baseada no volume de produção, filtros reativos por cultura agrícola e ranking dinâmico em tempo real.
+A arquitetura foi projetada com foco em performance e integridade, dividida em três pilares:
+1. **Pipeline de ETL (Python):** Ingestão transacional e higienização de dados brutos tabulares (CSV) com inserção em lote (Bulk Insert) em banco relacional.
+2. **Back-end (.NET Web API):** API RESTful construída em C# com Entity Framework Core. Otimizada para delegar agregações pesadas ao motor SQL, minimizando o uso de memória (RAM) no servidor de aplicação.
+3. **Front-end (GIS interativo):** Mapa web baseado em Leaflet.js com renderização vetorial, *choropleth* (escala de cores dinâmica) e recálculo em tempo real de rankings via requisições assíncronas.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-* **Back-end:** C#, .NET 10.0, ASP.NET Core Web API, Entity Framework Core
-* **Banco de Dados:** Microsoft SQL Server (SSMS)
+* **Back-end:** C#, .NET 10.0, ASP.NET Core Web API, Entity Framework Core (Fluent API)
+* **Banco de Dados:** Microsoft SQL Server (Indexação B-Tree)
 * **Engenharia de Dados (ETL):** Python 3, Pandas, PyODBC
-* **Front-end:** HTML5, CSS3, JavaScript Moderno (ES6+)
-* **Geoprocessamento & UI:** Leaflet.js, Malha GeoJSON oficial do IBGE (Goiás - Código 52), Bootstrap
+* **Front-end:** HTML5, CSS3, JavaScript (ES6+), Leaflet.js, Bootstrap
+
+---
+
+## 🧠 Decisões de Arquitetura e Engenharia
+
+Para garantir que a aplicação escale e responda em milissegundos, as seguintes otimizações foram implementadas:
+
+* **Deslocamento de Carga (Application vs. Database):** Todo o agrupamento de dados (`GroupBy`) foi mapeado e traduzido via LINQ para ser executado diretamente no motor do SQL Server, evitando o tráfego de milhares de linhas ociosas pela rede e prevenindo *Memory Leaks* na aplicação.
+* **Índices Compostos e Tipagem Estrita:** Uso de Fluent API no EF Core para evitar colunas `NVARCHAR(MAX)` e garantir precisão matemática com `Decimal(18,2)`. Criação de um Índice Composto (`Composite Index`) para as colunas `Cidade` e `Fruta`, reduzindo a complexidade de busca de O(N) para O(log N).
+* **Transações ACID no ETL:** O script de importação em Python executa a limpeza e inserção dos dados dentro de um bloco transacional unificado. Em caso de falha de I/O ou tipagem, um *Rollback* automático é acionado, impedindo estados corrompidos no banco.
+* **True Bulk Insert:** Configuração de `fast_executemany = True` no PyODBC, convertendo milhares de instruções sequenciais em uma única operação de memória, reduzindo o tempo de ingestão de forma drástica.
 
 ---
 
 ## 🏗️ Arquitetura do Sistema
 
-```text
 [ Arquivo CSV do IBGE ] 
        │
-       ▼ (Script Python / Pandas / PyODBC)
+       ▼ (Script Python / Pandas / PyODBC / ACID Transactions)
 [ Banco SQL Server (dbo.Producoes) ] 
        │
-       ▼ (Entity Framework Core / LINQ)
+       ▼ (Entity Framework Core / LINQ / B-Tree Indexing)
 [ ASP.NET Core Web API (/api/producoes) ] 
        │
        ▼ (Fetch assíncrono / JSON)
 [ Front-end (Leaflet.js + Filtros Dinâmicos) ]
-```
 
 ## Evolução Arquitetural (Versão MK2)
 
@@ -55,25 +63,27 @@ As principais decisões de engenharia incluem:
 ## ⚙️ Como Executar o Projeto Localmente
 
 ### Pré-requisitos
-Certifique-se de ter instalado em sua máquina:
 * [.NET 10 SDK](https://dotnet.microsoft.com/)
-* [Python 3.x](https://www.python.org/)
-* Microsoft SQL Server (ou SQL Server Express)
+* [Python 3.x](https://www.python.org/) com as bibliotecas `pandas`, `pyodbc` e `openpyxl`
+* Microsoft SQL Server (ou Express) rodando localmente.
 
-### Passo 1: Clonar o Repositório
-```bash
-git clone [https://github.com/fernandogt8/FrutosDeGoias.Api.git](https://github.com/fernandogt8/FrutosDeGoias.Api.git)
+### Passo 1: Clonar e Configurar
+git clone https://github.com/SEU-USUARIO/FrutosDeGoias.Api.git
 cd FrutosDeGoias.Api
-```
 
-### Passo 2: Configurar a Conexão com o Banco
-1. Crie um banco de dados vazio no seu SQL Server chamado `FrutosDeGoiasDb`.
-2. No arquivo `appsettings.json`, garanta que a string de conexão aponte corretamente para o seu servidor local. Exemplo:
-```json
+No arquivo `appsettings.json` da API, valide a string de conexão apontando para o seu servidor local:
 "ConnectionStrings": {
   "DefaultConnection": "Server=localhost\\SQLEXPRESS;Database=FrutosDeGoiasDb;Trusted_Connection=True;TrustServerCertificate=True;"
 }
-```
+
+### Passo 2: Inicializar o Banco de Dados (Migrations)
+Na pasta raiz do projeto .NET, aplique as configurações físicas e os índices no SQL Server:
+dotnet ef database update
+
+### Passo 3: Executar o Pipeline ETL
+Certifique-se de que o arquivo `producao.csv` está na raiz do projeto, instale as dependências e rode a importação:
+pip install pandas pyodbc openpyxl
+python importar_dados.py
 
 ### Passo 3: Criar o Schema e Popular o Banco (ETL)
 1. Primeiro, aplique as migrações do Entity Framework para gerar as tabelas estruturadas via C#:
@@ -87,26 +97,14 @@ python importar_dados.py
 ```
 
 ### Passo 4: Iniciar a API
-Execute o comando abaixo na pasta raiz do projeto para compilar e iniciar o servidor web:
-```bash
+Compile e inicie o servidor web:
 dotnet run
-```
 
-Acesse no navegador:
-* **Interface do Mapa (Front-end):** `http://localhost:5098/index.html`
-* **Documentação Swagger (API):** `http://localhost:5098/swagger`
-
----
-
-## 📸 Funcionalidades da Interface
-
-* **Filtros Multi-critério por Fruta:** Janela flutuante interativa com checkboxes para selecionar ou ocultar culturas específicas em tempo real.
-* **Mapa Estilizado (*Choropleth*):** Os polígonos municipais de Goiás alteram automaticamente a intensidade do tom de azul com base proporcional no volume de produção agrícola.
-* **Popups Informativos:** Clique sobre qualquer município para visualizar o detalhamento individual de cada fruta produzida e o somatório geral.
-* **Ranking Dinâmico Top 10:** O painel lateral recalcula instantaneamente as cidades líderes de produção conforme os filtros são modificados.
+* **Interface do Mapa (Front-end):** Acesse `http://localhost:5098/index.html`
+* **Documentação Swagger (API):** Acesse `http://localhost:5098/swagger`
 
 ---
 
 ## 👨‍💻 Autor
 
-Desenvolvido por **Fernando Pimenta** como projeto prático universitário aplicado.
+Desenvolvido por **Fernando Pimenta**, graduando em Ciência da Computação (FacUnicamps), com foco em desenvolvimento Back-end e infraestrutura de software.

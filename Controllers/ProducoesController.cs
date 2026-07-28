@@ -18,20 +18,28 @@ namespace FrutosDeGoias.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetProducoes()
         {
-            var dadosBrutos = await _context.Producoes.ToListAsync();
-            
-            if (!dadosBrutos.Any())
+            // PASSO 1: Agrupamento massivo executado estritamente no motor SQL
+            var agregacaoBanco = await _context.Producoes
+                .GroupBy(p => new { p.Cidade, p.Fruta })
+                .Select(g => new {
+                    CidadeRaw = g.Key.Cidade,
+                    Fruta = g.Key.Fruta,
+                    SomaTotal = g.Sum(x => x.QuantidadeToneladas)
+                })
+                .ToListAsync(); 
+
+            if (!agregacaoBanco.Any())
             {
                 return NotFound("Nenhum dado de produção encontrado no banco de dados.");
             }
 
-            // Agrupa os dados por cidade para o front-end consumir de forma limpa
-            var resultadoAgrupado = dadosBrutos
-                .GroupBy(p => p.Cidade.Replace(" (GO)", "").Trim())
+            // PASSO 2: Formatação de dicionário executada na memória (apenas sobre os dados já reduzidos)
+            var resultadoAgrupado = agregacaoBanco
+                .GroupBy(a => a.CidadeRaw.Replace(" (GO)", "").Trim())
                 .Select(g => new {
                     Cidade = g.Key,
-                    TotalGeral = g.Sum(x => x.QuantidadeToneladas),
-                    Frutas = g.ToDictionary(x => x.Fruta, x => x.QuantidadeToneladas)
+                    TotalGeral = g.Sum(x => x.SomaTotal),
+                    Frutas = g.ToDictionary(x => x.Fruta, x => x.SomaTotal)
                 })
                 .ToList();
 

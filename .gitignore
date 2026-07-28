@@ -12,6 +12,7 @@ __pycache__/
 *$py.class
 .venv/
 env/
+tempCodeRunnerFile.py
 
 # Sistema Operacional
 Thumbs.db
